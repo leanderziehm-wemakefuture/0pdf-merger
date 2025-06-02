@@ -1,0 +1,19 @@
+{
+  "name": "0pdf-merger",
+  "version": "1.0.0",
+  "description": "PDF Merger application with drag-and-drop functionality",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "repository": "git@github.com:leanderziehm-wemakefuture/0pdf-merger.git",
+  "author": "Leander Ziehm <leander.ziehm@wemakefuture.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.0"
+  }
+}

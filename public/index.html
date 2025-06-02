@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Merger</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .upload-area {
+      border: 3px dashed #667eea;
+      border-radius: 15px;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 30px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #764ba2;
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .upload-area.dragover {
+      border-color: #764ba2;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.02);
+    }
+
+    .upload-icon {
+      font-size: 3em;
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+
+    .upload-text {
+      font-size: 1.2em;
+      color: #666;
+      margin-bottom: 15px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .upload-btn, .merge-btn, .download-btn {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 1.1em;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .upload-btn:hover, .merge-btn:hover, .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .file-list {
+      margin: 30px 0;
+      min-height: 100px;
+    }
+
+    .file-item {
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .file-item:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .file-item.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+      cursor: grabbing;
+    }
+
+    .file-item.drag-over {
+      border-color: #764ba2;
+      background: rgba(102, 126, 234, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .file-icon {
+      font-size: 1.5em;
+      color: #667eea;
+      margin-right: 15px;
+    }
+
+    .file-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .file-size {
+      color: #888;
+      font-size: 0.9em;
+      margin-left: 10px;
+    }
+
+    .drag-handle {
+      color: #999;
+      font-size: 1.2em;
+      cursor: grab;
+      padding: 5px;
+    }
+
+    .drag-handle:hover {
+      color: #667eea;
+    }
+
+    .remove-btn {
+      background: #ff4757;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .remove-btn:hover {
+      background: #ff3742;
+      transform: scale(1.1);
+    }
+
+    .merge-section {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .loading-content {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 10px;
+    }
+
+    .success-message {
+      background: #2ed573;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .error-message {
+      background: #ff4757;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PDF Merger</h1>
+    
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📄</div>
+      <div class="upload-text">Drag & Drop PDF files here or click to browse</div>
+      <button class="upload-btn">
+        Choose Files
+      </button>
+      <input type="file" id="fileInput" class="file-input" multiple accept=".pdf">
+    </div>
+
+    <div class="success-message" id="successMessage"></div>
+    <div class="error-message" id="errorMessage"></div>
+
+    <div class="file-list" id="fileList">
+      <div class="empty-state" id="emptyState">
+        No PDF files added yet. Upload some files to get started!
+      </div>
+    </div>
+
+    <div class="merge-section">
+      <button class="merge-btn" id="mergeBtn" onclick="mergePDFs()" disabled>
+        Merge PDFs
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <h3>Merging your PDFs...</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p id="progressText">0%</p>
+    </div>
+  </div>
+
+  <script>
+    let files = [];
+    let draggedElement = null;
+    const apiUrl = 'http://localhost:3001/api';
+
+    // Initialize event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      const uploadArea = document.getElementById('uploadArea');
+      const fileInput = document.getElementById('fileInput');
+
+      // Upload area events
+      uploadArea.addEventListener('click', () => fileInput.click());
+      uploadArea.addEventListener('dragover', handleDragOver);
+      uploadArea.addEventListener('dragleave', handleDragLeave);
+      uploadArea.addEventListener('drop', handleDrop);
+
+      // File input change
+      fileInput.addEventListener('change', handleFileSelect);
+    });
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      processFiles(droppedFiles);
+    }
+
+    function handleFileSelect(e) {
+      const selectedFiles = Array.from(e.target.files);
+      processFiles(selectedFiles);
+    }
+
+    async function processFiles(newFiles) {
+      const pdfFiles = newFiles.filter(file => file.type === 'application/pdf');
+      
+      if (pdfFiles.length === 0) {
+        showError('Please select only PDF files.');
+        return;
+      }
+
+      showLoading();
+
+      try {
+        const formData = new FormData();
+        pdfFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
+
+        const response = await fetch(`${apiUrl}/upload`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const result = await response.json();
+        
+        // Add new files to the list
+        result.files.forEach(file => {
+          files.push({
+            id: file.id,
+            name: file.name,
+            buffer: file.buffer,
+            size: file.size
+          });
+        });
+
+        updateFileList();
+        // showSuccess(`${result.files.length} PDF(s) uploaded successfully!`);
+        
+      } catch (error) {
+        console.error('Upload error:', error);
+        showError('Failed to upload files. Please try again.');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function updateFileList() {
+      const fileList = document.getElementById('fileList');
+      const emptyState = document.getElementById('emptyState');
+      const mergeBtn = document.getElementById('mergeBtn');
+
+      if (files.length === 0) {
+        emptyState.style.display = 'block';
+        mergeBtn.disabled = true;
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      mergeBtn.disabled = false;
+
+      fileList.innerHTML = files.map((file, index) => `
+        <div class="file-item" draggable="true" data-index="${index}">
+              <button class="remove-btn" onclick="removeFile(${index})">&times;</button>
+          <div class="file-info">
+            <div class="file-icon">📄</div>
+            <div>
+              <div class="file-name">${file.name}</div>
+              <div class="file-size">${formatFileSize(file.size)}</div>
+            </div>
+          </div>
+          <div class="drag-handle">⋮⋮</div>
+        
+        </div>
+      `).join('');
+
+      // Add drag events to file items
+      document.querySelectorAll('.file-item').forEach(item => {
+        item.addEventListener('dragstart', handleItemDragStart);
+        item.addEventListener('dragover', handleItemDragOver);
+        item.addEventListener('drop', handleItemDrop);
+        item.addEventListener('dragend', handleItemDragEnd);
+      });
+    }
+
+    function handleItemDragStart(e) {
+      draggedElement = e.currentTarget;
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleItemDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      
+      const afterElement = getDragAfterElement(e.currentTarget.parentNode, e.clientY);
+      const dragging = document.querySelector('.dragging');
+      
+      if (afterElement == null) {
+        e.currentTarget.parentNode.appendChild(dragging);
+      } else {
+        e.currentTarget.parentNode.insertBefore(dragging, afterElement);
+      }
+    }
+
+    function handleItemDrop(e) {
+      e.preventDefault();
+      const draggedIndex = parseInt(draggedElement.dataset.index);
+      const dropIndex = parseInt(e.currentTarget.dataset.index);
+      
+      if (draggedIndex !== dropIndex) {
+        const draggedFile = files.splice(draggedIndex, 1)[0];
+        files.splice(dropIndex, 0, draggedFile);
+        updateFileList();
+      }
+    }
+
+    function handleItemDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      draggedElement = null;
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.file-item:not(.dragging)')];
+      
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function removeFile(index) {
+      files.splice(index, 1);
+      updateFileList();
+      showSuccess('File removed successfully!');
+    }
+
+    async function mergePDFs() {
+      if (files.length === 0) {
+        showError('Please add at least one PDF file.');
+        return;
+      }
+
+      showLoading();
+      
+      try {
+        const response = await fetch(`${apiUrl}/merge`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: files,
+            fileName: `merged_${Date.now()}.pdf`
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Merge failed');
+        }
+
+        const result = await response.json();
+        
+        if (result.success && result.url) {
+          // Auto download
+          const link = document.createElement('a');
+          link.href = result.url;
+          link.download = result.fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          showSuccess('PDFs merged successfully! Download should start automatically.');
+          
+          // Show download button as backup
+          setTimeout(() => {
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'download-btn';
+            downloadBtn.textContent = 'Download Again';
+            downloadBtn.onclick = () => {
+              const link = document.createElement('a');
+              link.href = result.url;
+              link.download = result.fileName;
+              link.click();
+            };
+            
+            const mergeSection = document.querySelector('.merge-section');
+            mergeSection.appendChild(downloadBtn);
+          }, 2000);
+          
+        } else {
+          throw new Error('No download URL received');
+        }
+
+      } catch (error) {
+        console.error('Merge error:', error);
+        showError(`Failed to merge PDFs: ${error.message}`);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function showLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.style.display = 'flex';
+      
+      // Simulate progress
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        progressFill.style.width = progress + '%';
+        progressText.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 90) {
+          clearInterval(interval);
+        }
+      }, 200);
+      
+      // Store interval for cleanup
+      overlay.dataset.interval = interval;
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      const interval = overlay.dataset.interval;
+      
+      if (interval) {
+        clearInterval(parseInt(interval));
+      }
+      
+      // Complete progress bar
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('progressText').textContent = '100%';
+      
+      setTimeout(() => {
+        overlay.style.display = 'none';
+      }, 500);
+    }
+
+    function showSuccess(message) {
+      const successMsg = document.getElementById('successMessage');
+      successMsg.textContent = message;
+      successMsg.style.display = 'block';
+      
+      setTimeout(() => {
+        successMsg.style.display = 'none';
+      }, 5000);
+    }
+
+    function showError(message) {
+      const errorMsg = document.getElementById('errorMessage');
+      errorMsg.textContent = message;
+      errorMsg.style.display = 'block';
+      
+      setTimeout(() => {
+        errorMsg.style.display = 'none';
+      }, 5000);
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+  </script>
+</body>
+</html>
